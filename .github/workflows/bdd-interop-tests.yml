@@ -1,0 +1,59 @@
+# Mirrors openwallet-foundation/acapy BDD interop workflow:
+# https://github.com/openwallet-foundation/acapy/blob/main/.github/workflows/bdd-interop-tests.yml
+# Runs Indy and AnonCreds interop tests against acapy-main using external HTTPS ledger.
+name: BDD Interop Integration Tests
+
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build acapy-main
+        run: ./manage build -a acapy-main
+
+      - name: Run Interop Tests (Indy)
+        continue-on-error: true
+        run: |
+          LEDGER_TIMEOUT=180 NO_TTY=1 LEDGER_URL_CONFIG=https://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io \
+            ./manage run -d acapy-main \
+            -t @critical -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Anoncreds \
+            2>&1 | tee output-indy.txt
+
+      - name: Run Interop Tests (AnonCreds)
+        continue-on-error: true
+        run: |
+          LEDGER_TIMEOUT=180 NO_TTY=1 LEDGER_URL_CONFIG=https://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io \
+            BACKCHANNEL_EXTRA_acapy_main='{"wallet-type":"askar-anoncreds"}' \
+            ./manage run -d acapy-main \
+            -t @AcceptanceTest -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy \
+            2>&1 | tee output-anoncreds.txt
+
+      - name: Check If Tests Failed
+        if: always()
+        run: |
+          failed=0
+          if [ -f output-indy.txt ] && grep -q "Failing scenarios:" output-indy.txt; then
+            echo "Indy tests failed:"
+            grep -A 100 "Failing scenarios:" output-indy.txt || true
+            failed=1
+          fi
+          if [ -f output-anoncreds.txt ] && grep -q "Failing scenarios:" output-anoncreds.txt; then
+            echo "AnonCreds tests failed:"
+            grep -A 100 "Failing scenarios:" output-anoncreds.txt || true
+            failed=1
+          fi
+          if [ "$failed" = "1" ]; then
+            echo "Tests failed"
+            exit 1
+          fi
+          echo "Tests passed"
+          exit 0
