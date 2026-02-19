@@ -5,6 +5,8 @@ name: BDD Interop Integration Tests
 
 on:
   workflow_dispatch:
+  push:
+    # Push to any branch runs this workflow from that branch (so you can trigger without merging to main)
 
 defaults:
   run:
