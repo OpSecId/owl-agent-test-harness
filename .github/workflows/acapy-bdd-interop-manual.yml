@@ -1,0 +1,39 @@
+# Replicate of acapy repo's .github/workflows/bdd-interop-tests.yml
+# Sourced from: openwallet-foundation/acapy .github/workflows/bdd-interop-tests.yml
+# Adapted for owl-agent-test-harness: manual trigger only, no PR/release logic; uses external ledger + tails like acapy.
+name: acapy-bdd-interop-manual
+on:
+  workflow_dispatch:
+defaults:
+  run:
+    shell: bash
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout-test-harness
+        uses: actions/checkout@v4
+      - name: Prepare Interop Tests (build)
+        run: ./manage build -a acapy-main
+      - name: Run Interop Tests Indy
+        run: |
+          LEDGER_TIMEOUT=180 NO_TTY=1 LEDGER_URL_CONFIG=https://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @critical -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Anoncreds 2>&1 | tee output.txt
+      - name: Run Interop Tests AnonCreds
+        run: |
+          LEDGER_TIMEOUT=180 BACKCHANNEL_EXTRA_acapy_main="{\"wallet-type\":\"askar-anoncreds\"}" NO_TTY=1 LEDGER_URL_CONFIG=https://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @AcceptanceTest -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy 2>&1 | tee output.txt
+      - name: Check If Tests Failed
+        if: always()
+        run: |
+          if [ -f output.txt ]; then
+            cat output.txt
+            if grep "Failing scenarios:" output.txt; then
+              echo "Tests failed"
+              exit 1
+            else
+              echo "Tests passed"
+              exit 0
+            fi
+          else
+            echo "No output file found - tests may not have run"
+            exit 1
+          fi
