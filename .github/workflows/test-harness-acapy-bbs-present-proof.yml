@@ -26,8 +26,8 @@ jobs:
   test-bbs-present-proof:
     runs-on: ubuntu-latest
     env:
-      LEDGER_URL_CONFIG: "http://test.bcovrin.vonx.io"
-      GENESIS_URL: "http://test.bcovrin.vonx.io/genesis"
+      LEDGER_URL_CONFIG: "https://test.bcovrin.vonx.io"
+      GENESIS_URL: "https://test.bcovrin.vonx.io/genesis"
       TAILS_SERVER_URL_CONFIG: "https://tails.vonx.io"
       LOG_LEVEL: "INFO"
     steps:
